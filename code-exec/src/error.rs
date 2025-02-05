@@ -28,4 +28,10 @@ pub enum Error {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-} 
+
+    #[error("Resource exceeded: {0}")]
+    ResourceExceeded(String),
+
+    #[error("Resource limit error: {0}")]
+    ResourceLimitError(String),
+}

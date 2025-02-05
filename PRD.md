@@ -33,44 +33,106 @@ Provide a secure and automated way to deploy Docker containers in TEE environmen
 
 ### Purpose
 
-Enable developers to execute code snippets securely in isolated TEE environments.
+Enable secure, concurrent execution of code snippets in isolated environments within a TEE container.
 
 ### Supported Languages (Phase 1)
 
 1. Python
 2. JavaScript/Node.js
-3. Rust
-4. Go
-5. Java
+3. TypeScript
+4. Java
+5. Go
 6. C++
-7. Ruby
-8. PHP
-9. Swift
-10. TypeScript
+7. PHP
+8. Swift
 
 ### Core Features
 
-- Language-specific runtime environments
-- Dependency management
-- Resource usage limits
+#### Execution Pipeline
+
+- Language-specific runtime environments with version control
+- Dependency management and isolation
+- Resource monitoring and limits enforcement
 - Execution timeout handling
-- Secure result retrieval
-- Input validation and sanitization
+- Process statistics collection (memory usage, execution time)
+- Concurrent execution support
 
-### Security Features
+#### Process Isolation
 
-- Sandboxed execution environment
-- Memory usage limits
-- Network access controls
-- Filesystem isolation
-- Resource quotas
+- Sandboxed execution per request
+- Memory and process monitoring
+- Resource cleanup after execution
+- File system isolation per execution
 
-### API Interface
+#### Performance Monitoring
 
-- Job submission endpoint
-- Status checking
-- Result retrieval
-- Error handling
+- Real-time memory usage tracking
+- Peak memory monitoring
+- Execution time measurement
+- Process statistics collection
+
+### Technical Architecture
+
+#### Components
+
+1. Code Executor
+
+   - Manages execution lifecycle
+   - Creates isolated sandboxes
+   - Handles language-specific setup
+   - Manages resource limits
+
+2. Sandbox Environment
+
+   - Process isolation
+   - Resource monitoring
+   - File system isolation
+   - Memory tracking
+   - Cleanup management
+
+3. Language Executors
+   - Language-specific setup
+   - Dependency management
+   - Compilation (if needed)
+   - Runtime configuration
+
+#### Execution Flow
+
+1. Request Reception
+
+   ```rust
+   pub struct ExecutionRequest {
+       language: Language,
+       code: String,
+       dependencies: Vec<Dependency>,
+       timeout: Duration,
+       env_vars: HashMap<String, String>,
+   }
+   ```
+
+2. Execution Setup
+
+   - Sandbox creation with unique ID
+   - Environment preparation
+   - Dependency installation
+   - Resource allocation
+
+3. Code Execution
+
+   - Process spawning with isolation
+   - Memory monitoring via ps command
+   - Output capture (stdout/stderr)
+   - Resource tracking
+
+4. Result Collection
+   ```rust
+   pub struct ExecutionResult {
+       status: ExecutionStatus,
+       stdout: String,
+       stderr: String,
+       process_stats: ProcessStats,
+   }
+   ```
 
 ## Implementation Phases
 
@@ -97,11 +159,25 @@ Enable developers to execute code snippets securely in isolated TEE environments
 
 ## Success Metrics
 
-1. Deployment success rate
-2. Code execution latency
-3. Resource utilization
-4. Security incident rate
-5. User satisfaction metrics
+1. Performance
+
+   - Average execution time
+   - Memory usage efficiency
+   - Concurrent execution capacity
+   - Resource utilization
+
+2. Reliability
+
+   - Successful execution rate
+   - Error handling effectiveness
+   - Resource cleanup success rate
+   - System stability
+
+3. Security
+   - Process isolation effectiveness
+   - Resource limit enforcement
+   - Sandbox integrity
+   - Clean state between executions
 
 ## Technical Architecture
 
@@ -113,8 +189,22 @@ Enable developers to execute code snippets securely in isolated TEE environments
 
 ## Limitations & Constraints
 
-1. Maximum execution time: 5 minutes
-2. Maximum memory usage: 2GB per instance
-3. Maximum storage: 1GB per instance
-4. Network access: Restricted
-5. File system access: Read-only except for designated directories
+1. Execution Limits
+
+   - Maximum execution time: 5 minutes
+   - Maximum memory: 512MB per execution
+   - Maximum disk space: 100MB per sandbox
+   - Maximum processes: 10 per sandbox
+   - Maximum file size: 10MB
+
+2. Concurrency Limits
+
+   - Based on host resource availability
+   - Configurable maximum concurrent executions
+   - Resource-based scheduling
+
+3. Security Boundaries
+   - No network access by default
+   - Read-only file system except for designated directories
+   - Process isolation using namespaces
+   - Resource monitoring and limits

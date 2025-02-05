@@ -1,18 +1,14 @@
 use crate::{error::Error, types::ResourceLimits, ProcessStats};
-use serde::{Deserialize, Serialize};
-use std::{
-    path::{Path, PathBuf},
-    process::Stdio,
-};
+use nix::sys::resource::{setrlimit, Resource};
+use std::{path::PathBuf, process::Stdio};
 use tokio::{
     fs,
     io::AsyncWriteExt,
-    process::{Child, Command},
+    process::Command,
     time::{self, Duration},
 };
-use tracing::{debug, error, info};
+use tracing::error;
 use uuid::Uuid;
-use which;
 
 /// Sandbox environment for secure code execution
 pub struct Sandbox {
@@ -21,6 +17,7 @@ pub struct Sandbox {
     /// Resource limits
     limits: ResourceLimits,
     /// Unique ID for this sandbox instance
+    #[allow(dead_code)]
     id: String,
 }
 
@@ -62,26 +59,7 @@ impl Sandbox {
     ) -> Result<(String, String, ProcessStats), Error> {
         let start = std::time::Instant::now();
 
-        // Check if we can use unshare
-        let can_unshare =
-            which::which("unshare").is_ok() && nix::unistd::Uid::effective().is_root();
-
-        let mut command = if can_unshare {
-            let mut unshare_cmd = Command::new("unshare");
-            unshare_cmd.args([
-                "--pid",
-                "--fork",
-                "--mount",
-                "--mount-proc",
-                "--root",
-                &self.root_dir.to_string_lossy(),
-                cmd,
-            ]);
-            unshare_cmd
-        } else {
-            Command::new(cmd)
-        };
-
+        let mut command = Command::new(cmd);
         command
             .args(args)
             .env_clear()
@@ -90,42 +68,53 @@ impl Sandbox {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        // Add input if provided
-        if let Some(input_str) = input {
-            command.stdin(Stdio::piped());
+        // Clone the values we need before the closure
+        let memory = self.limits.memory;
+        let cpu_time = self.limits.cpu_time;
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "android",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "aix"
+        ))]
+        let processes = self.limits.processes;
+        let file_size = self.limits.file_size;
+        #[cfg(target_os = "linux")]
+        let disk_space = self.limits.disk_space;
+
+        // Set resource limits before spawning
+        unsafe {
+            command.pre_exec(move || {
+                // Use the cloned values instead of self
+                setrlimit(Resource::RLIMIT_AS, memory, memory)?;
+                setrlimit(Resource::RLIMIT_CPU, cpu_time as u64, cpu_time as u64)?;
+
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "android",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "aix"
+                ))]
+                setrlimit(Resource::RLIMIT_NPROC, processes as u64, processes as u64)?;
+
+                setrlimit(Resource::RLIMIT_FSIZE, file_size, file_size)?;
+
+                #[cfg(target_os = "linux")]
+                setrlimit(Resource::RLIMIT_DISK, disk_space, disk_space)?;
+
+                Ok(())
+            });
         }
 
-        // Start the command
         let mut child = command
             .spawn()
-            .map_err(|e| Error::Sandbox(format!("Failed to spawn sandboxed process: {}", e)))?;
+            .map_err(|e| Error::Sandbox(format!("Failed to spawn process: {}", e)))?;
 
+        // Monitor process resources
         let pid = child.id().expect("Failed to get process ID");
-        let mut peak_memory = 0;
-
-        // Monitor process memory usage
-        let memory_handle = tokio::spawn(async move {
-            while let Ok(true) = tokio::process::Command::new("ps")
-                .args(["-p", &pid.to_string(), "-o", "rss="])
-                .status()
-                .await
-                .map(|status| status.success())
-            {
-                if let Ok(output) = tokio::process::Command::new("ps")
-                    .args(["-p", &pid.to_string(), "-o", "rss="])
-                    .output()
-                    .await
-                {
-                    if let Ok(mem_str) = String::from_utf8(output.stdout) {
-                        if let Ok(current_mem) = mem_str.trim().parse::<u64>() {
-                            peak_memory = peak_memory.max(current_mem * 1024); // Convert KB to bytes
-                        }
-                    }
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-            peak_memory
-        });
+        let memory_monitor = self.monitor_process_resources(pid);
 
         // Write input if provided
         if let Some(input_str) = input {
@@ -189,19 +178,59 @@ impl Sandbox {
             )));
         }
 
-        let peak_memory = memory_handle
+        let stats = memory_monitor
             .await
             .map_err(|e| Error::Sandbox(format!("Failed to monitor process memory: {}", e)))?;
 
         let execution_time = start.elapsed();
 
-        let stats = ProcessStats {
-            memory_usage: peak_memory, // Final memory usage
-            peak_memory,               // Peak memory usage during execution
-            execution_time,
-        };
+        Ok((
+            output.1,
+            output.2,
+            ProcessStats {
+                memory_usage: stats.memory_usage,
+                peak_memory: stats.peak_memory,
+                execution_time,
+            },
+        ))
+    }
 
-        Ok((output.1, output.2, stats))
+    async fn monitor_process_resources(&self, pid: u32) -> Result<ProcessStats, Error> {
+        let mut peak_memory = 0;
+        let start = std::time::Instant::now();
+
+        while let Ok(true) = tokio::process::Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "rss=,time="])
+            .status()
+            .await
+            .map(|status| status.success())
+        {
+            if let Ok(output) = tokio::process::Command::new("ps")
+                .args(["-p", &pid.to_string(), "-o", "rss=,time="])
+                .output()
+                .await
+            {
+                // Monitor memory usage
+                if let Ok(stats) = String::from_utf8(output.stdout) {
+                    let parts: Vec<&str> = stats.split_whitespace().collect();
+                    if let Ok(current_mem) = parts.get(0).unwrap_or(&"0").parse::<u64>() {
+                        peak_memory = peak_memory.max(current_mem * 1024); // Convert KB to bytes
+
+                        // Check if exceeding memory limit
+                        if peak_memory > self.limits.memory {
+                            return Err(Error::ResourceExceeded("Memory limit exceeded".into()));
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+
+        Ok(ProcessStats {
+            memory_usage: peak_memory,
+            peak_memory,
+            execution_time: start.elapsed(),
+        })
     }
 }
 

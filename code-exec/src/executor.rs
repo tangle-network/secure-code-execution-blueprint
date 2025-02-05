@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use gadget_std::{end_timer, start_timer};
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -10,7 +9,7 @@ use crate::{
         SwiftExecutor, TypeScriptExecutor,
     },
     sandbox::Sandbox,
-    types::{ExecutionRequest, ExecutionResult, ExecutionStatus, Language, ResourceLimits},
+    types::{ExecutionRequest, ExecutionResult, ExecutionStatus, Language},
 };
 
 /// Trait for language-specific code executors
@@ -51,58 +50,50 @@ pub trait LanguageExecutor: Send + Sync {
 }
 
 /// Generic code executor that uses a sandbox
-pub struct CodeExecutor {
-    sandbox: Sandbox,
-}
+pub struct CodeExecutor {}
 
 impl CodeExecutor {
     /// Create a new code executor
     pub async fn new() -> Result<Self, Error> {
-        Ok(Self {
-            sandbox: Sandbox::new(ResourceLimits::default()).await?,
-        })
+        Ok(Self {})
     }
 
-    /// Execute code according to the request
-    pub async fn execute(&self, request: ExecutionRequest) -> Result<ExecutionResult, Error> {
+    /// Execute code in a specific sandbox
+    pub async fn execute_in_sandbox(
+        &self,
+        request: ExecutionRequest,
+        sandbox: Sandbox,
+    ) -> Result<ExecutionResult, Error> {
         let executor = self.create_executor(request.language)?;
 
-        // Use the same pattern as check_requirements
+        // Check/install tools only if needed (shared across executions)
         if let Err(_) = executor.check_tools().await {
             executor.install_missing_tools().await?;
         }
 
         let source_file = self
-            .write_source_file(&request, executor.file_extension())
+            .write_source_file(&sandbox, &request, executor.file_extension())
             .await?;
 
-        // Set up environment
-        let sandbox_dir = self.sandbox.root_dir.clone();
-        executor.ensure_directories(&sandbox_dir).await?;
-        executor.setup_environment(&sandbox_dir).await?;
+        // Setup sandbox environment
+        executor.ensure_directories(&sandbox.root_dir).await?;
+        executor.setup_environment(&sandbox.root_dir).await?;
 
-        // Install dependencies
         if !request.dependencies.is_empty() {
             executor
-                .install_dependencies(&sandbox_dir, &request.dependencies)
+                .install_dependencies(&sandbox.root_dir, &request.dependencies)
                 .await?;
         }
 
-        // Compile if needed
-        executor.compile(&sandbox_dir, &source_file).await?;
+        executor.compile(&sandbox.root_dir, &source_file).await?;
 
-        // Convert env_vars to the correct type
         let env_vars: Vec<(String, String)> = request
             .env_vars
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        // let exec_time = start_timer!(|| "execute");
-
-        // Execute
-        let (stdout, stderr, process_stats) = self
-            .sandbox
+        let (stdout, stderr, process_stats) = sandbox
             .execute(
                 executor.run_command(),
                 &executor
@@ -116,8 +107,6 @@ impl CodeExecutor {
             )
             .await?;
 
-        // end_timer!(exec_time);
-
         Ok(ExecutionResult {
             status: ExecutionStatus::Success,
             stdout,
@@ -128,11 +117,12 @@ impl CodeExecutor {
 
     async fn write_source_file(
         &self,
+        sandbox: &Sandbox,
         request: &ExecutionRequest,
         extension: &str,
     ) -> Result<PathBuf, Error> {
         let filename = format!("source.{}", extension);
-        let path = self.sandbox.root_dir.join("tmp").join(filename);
+        let path = sandbox.root_dir.join("tmp").join(filename);
         fs::write(&path, &request.code).await.map_err(Error::Io)?;
         Ok(path)
     }
