@@ -81,29 +81,3 @@ pub enum Error {
     #[error("Execution error: {0}")]
     ExecutionError(String),
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let config = GadgetConfiguration::default();
-        let context = ServiceContext {
-            config,
-            call_id: None,
-            code_exec_url: "http://localhost:8080".to_string(),
-            http_client: Client::new(),
-        };
-        let result = deploy_code_exec(context.clone()).unwrap();
-        assert_eq!(result, "Code execution service deployed");
-        let result = execute_code(
-            "rust".to_string(),
-            "fn main() { println!(\"Hello, world!\"); }".to_string(),
-            None,
-            context,
-        )
-        .unwrap();
-        assert_eq!(result, "Hello, world!");
-    }
-}

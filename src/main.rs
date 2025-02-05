@@ -3,8 +3,8 @@ use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::tangle::tangle::TangleConfig;
 use blueprint_sdk::tokio::task;
 use code_exec::{CodeExecutionServer, CodeExecutionService, ResourceLimits};
-use phala_tee_blueprint_template as blueprint;
 use reqwest::Client;
+use secure_code_execution_blueprint as blueprint;
 use std::time::Duration;
 
 const CODE_EXEC_PORT: u16 = 8080;
