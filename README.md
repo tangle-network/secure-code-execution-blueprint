@@ -15,93 +15,51 @@ The service is designed to be:
 ## 🎯 Features
 
 <div align="center">
-<table>
-<tr>
-  <td width="25%" align="center" style="padding: 20px;">
-    <h3>🌍 Languages</h3>
-    <div align="left" style="display: inline-block;">
-      • Python<br/>
-      • JavaScript/TypeScript<br/>
-      • Rust<br/>
-      • Golang<br/>
-      • C++<br/>
-      • Java<br/>
-      • PHP<br/>
-      • Swift
-    </div>
-  </td>
-  <td width="25%" align="center" style="padding: 20px;">
-    <h3>🛡️ Security</h3>
-    <div align="left" style="display: inline-block;">
-      • Sandboxed Environment<br/>
-      • Memory Limits<br/>
-      • CPU Time Limits<br/>
-      • Process Isolation<br/>
-      • File Restrictions<br/>
-      • Disk Quotas<br/>
-      • Network Control<br/>
-      • Access Control
-    </div>
-  </td>
-  <td width="25%" align="center" style="padding: 20px;">
-    <h3>⚙️ Resources</h3>
-    <div align="left" style="display: inline-block;">
-      • Concurrent Execution<br/>
-      • Auto Cleanup<br/>
-      • Memory Tracking<br/>
-      • Time Monitoring<br/>
-      • Process Management<br/>
-      • Resource Limits<br/>
-      • Load Balancing<br/>
-      • Usage Analytics
-    </div>
-  </td>
-  <td width="25%" align="center" style="padding: 20px;">
-    <h3>🔌 Integration</h3>
-    <div align="left" style="display: inline-block;">
-      • RESTful API<br/>
-      • Language Detection<br/>
-      • Structured Output<br/>
-      • Error Handling<br/>
-      • Status Monitoring<br/>
-      • Health Checks<br/>
-      • Metrics Export<br/>
-      • Event Streaming
-    </div>
-  </td>
-</tr>
-</table>
 
-<table style="margin-top: 30px;">
-<tr>
-  <th colspan="2" style="text-align: center; padding: 10px;">💫 Key Capabilities</th>
-</tr>
-<tr>
-  <td width="30%" style="padding: 15px;"><b>Execution Isolation</b></td>
-  <td width="70%" style="padding: 15px;">Each code snippet runs in its own sandboxed environment</td>
-</tr>
-<tr>
-  <td style="padding: 15px;"><b>Resource Control</b></td>
-  <td style="padding: 15px;">Fine-grained control over memory, CPU, and disk usage</td>
-</tr>
-<tr>
-  <td style="padding: 15px;"><b>Concurrent Processing</b></td>
-  <td style="padding: 15px;">Handle multiple code executions simultaneously</td>
-</tr>
-<tr>
-  <td style="padding: 15px;"><b>Security Measures</b></td>
-  <td style="padding: 15px;">TEE protection, resource limits, and process isolation</td>
-</tr>
-<tr>
-  <td style="padding: 15px;"><b>Language Support</b></td>
-  <td style="padding: 15px;">Easy integration of new programming languages</td>
-</tr>
-<tr>
-  <td style="padding: 15px;"><b>Monitoring</b></td>
-  <td style="padding: 15px;">Real-time tracking of resource usage and execution status</td>
-</tr>
-</table>
+<kbd>
+  <h3>🌍 Languages</h3>
+  <b>Core</b><br/>
+  Python • JavaScript • Rust<br/><br/>
+  <b>Extended</b><br/>
+  Go • C++ • Java • PHP • Swift
+</kbd> &nbsp;&nbsp;&nbsp;
+
+<kbd>
+  <h3>🛡️ Security</h3>
+  <b>Isolation</b><br/>
+  TEE • Sandboxing • Process Control<br/><br/>
+  <b>Limits</b><br/>
+  Memory • CPU • Disk • Network
+</kbd> &nbsp;&nbsp;&nbsp;
+
+<kbd>
+  <h3>⚙️ Resources</h3>
+  <b>Management</b><br/>
+  Concurrent Execution • Auto Cleanup<br/><br/>
+  <b>Monitoring</b><br/>
+  Memory • CPU • Time • Analytics
+</kbd> &nbsp;&nbsp;&nbsp;
+
+<kbd>
+  <h3>🔌 Integration</h3>
+  <b>API</b><br/>
+  REST • Events • Metrics<br/><br/>
+  <b>Monitoring</b><br/>
+  Health • Status • Logs
+</kbd>
+
 </div>
+
+### 💫 Key Capabilities
+
+| Capability                | Description                                               |
+| ------------------------- | --------------------------------------------------------- |
+| **Execution Isolation**   | Each code snippet runs in its own sandboxed environment   |
+| **Resource Control**      | Fine-grained control over memory, CPU, and disk usage     |
+| **Concurrent Processing** | Handle multiple code executions simultaneously            |
+| **Security Measures**     | TEE protection, resource limits, and process isolation    |
+| **Language Support**      | Easy integration of new programming languages             |
+| **Monitoring**            | Real-time tracking of resource usage and execution status |
 
 ## 📋 Prerequisites
 
