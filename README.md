@@ -14,39 +14,88 @@ The service is designed to be:
 
 ## 🎯 Features
 
-- **Multi-language Support**:
+<table>
+<tr>
+  <td width="25%" align="center">
+    <h3>🌍 Languages</h3>
+    <p>
+      • Python<br/>
+      • JavaScript/TypeScript<br/>
+      • Rust<br/>
+      • Golang<br/>
+      • C++<br/>
+      • Java<br/>
+      • PHP<br/>
+      • Swift
+    </p>
+  </td>
+  <td width="25%" align="center">
+    <h3>🛡️ Security</h3>
+    <p>
+      • Sandboxed Environment<br/>
+      • Memory Limits<br/>
+      • CPU Time Limits<br/>
+      • Process Isolation<br/>
+      • File Restrictions<br/>
+      • Disk Quotas
+    </p>
+  </td>
+  <td width="25%" align="center">
+    <h3>⚙️ Resources</h3>
+    <p>
+      • Concurrent Execution<br/>
+      • Auto Cleanup<br/>
+      • Memory Tracking<br/>
+      • Time Monitoring<br/>
+      • Process Management<br/>
+      • Resource Limits
+    </p>
+  </td>
+  <td width="25%" align="center">
+    <h3>🔌 Integration</h3>
+    <p>
+      • RESTful API<br/>
+      • Language Detection<br/>
+      • Structured Output<br/>
+      • Error Handling<br/>
+      • Status Monitoring<br/>
+      • Health Checks
+    </p>
+  </td>
+</tr>
+</table>
 
-  - Python
-  - JavaScript/TypeScript
-  - Rust
-  - Golang
-  - C++
-  - Java
-  - PHP
-  - Swift
-  - And more can easily be integrated
-
-- **Security Features**:
-
-  - Sandboxed execution environment
-  - Memory limits
-  - CPU time limits
-  - Process limits
-  - File size restrictions
-  - Disk space quotas
-
-- **Resource Management**:
-
-  - Concurrent execution handling
-  - Automatic resource cleanup
-  - Memory usage tracking
-  - Execution time monitoring
-
-- **HTTP API**:
-  - Simple REST interface
-  - Language-agnostic API
-  - Structured response format
-  - Error handling and reporting
+<div align="center">
+  <table>
+    <tr>
+      <th colspan="2">💫 Key Capabilities</th>
+    </tr>
+    <tr>
+      <td><b>Execution Isolation</b></td>
+      <td>Each code snippet runs in its own sandboxed environment</td>
+    </tr>
+    <tr>
+      <td><b>Resource Control</b></td>
+      <td>Fine-grained control over memory, CPU, and disk usage</td>
+    </tr>
+    <tr>
+      <td><b>Concurrent Processing</b></td>
+      <td>Handle multiple code executions simultaneously</td>
+    </tr>
+    <tr>
+      <td><b>Security Measures</b></td>
+      <td>TEE protection, resource limits, and process isolation</td>
+    </tr>
+    <tr>
+      <td><b>Language Support</b></td>
+      <td>Easy integration of new programming languages</td>
+    </tr>
+    <tr>
+      <td><b>Monitoring</b></td>
+      <td>Real-time tracking of resource usage and execution status</td>
+    </tr>
+  </table>
+</div>
 
 ## 📋 Prerequisites
 
