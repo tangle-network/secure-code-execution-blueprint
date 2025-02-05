@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
 
 /// Supported programming languages
@@ -10,10 +11,30 @@ pub enum Language {
     JavaScript,
     TypeScript,
     Java,
+    Rust,
     Go,
     Cpp,
     Php,
     Swift,
+}
+
+impl FromStr for Language {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "python" => Ok(Language::Python),
+            "javascript" => Ok(Language::JavaScript),
+            "typescript" => Ok(Language::TypeScript),
+            "java" => Ok(Language::Java),
+            "rust" => Ok(Language::Rust),
+            "go" => Ok(Language::Go),
+            "cpp" => Ok(Language::Cpp),
+            "php" => Ok(Language::Php),
+            "swift" => Ok(Language::Swift),
+            _ => Err(format!("Unsupported language: {}", s)),
+        }
+    }
 }
 
 /// Code execution request
@@ -79,6 +100,18 @@ pub enum ExecutionStatus {
     Timeout,
     CompilationError,
     SystemError,
+}
+
+impl ToString for ExecutionStatus {
+    fn to_string(&self) -> String {
+        match self {
+            ExecutionStatus::Success => "success".to_string(),
+            ExecutionStatus::Error => "error".to_string(),
+            ExecutionStatus::Timeout => "timeout".to_string(),
+            ExecutionStatus::CompilationError => "compilation_error".to_string(),
+            ExecutionStatus::SystemError => "system_error".to_string(),
+        }
+    }
 }
 
 /// Resource limits for code execution

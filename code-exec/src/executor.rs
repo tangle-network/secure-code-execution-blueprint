@@ -1,12 +1,13 @@
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::fs;
+use tracing::debug;
 
 use crate::{
     error::Error,
     languages::{
         CppExecutor, GoExecutor, JavaExecutor, JavaScriptExecutor, PhpExecutor, PythonExecutor,
-        SwiftExecutor, TypeScriptExecutor,
+        RustExecutor, SwiftExecutor, TypeScriptExecutor,
     },
     sandbox::Sandbox,
     types::{ExecutionRequest, ExecutionResult, ExecutionStatus, Language},
@@ -66,14 +67,19 @@ impl CodeExecutor {
     ) -> Result<ExecutionResult, Error> {
         let executor = self.create_executor(request.language)?;
 
+        println!("Created executor for language: {:?}", request.language);
+
         // Check/install tools only if needed (shared across executions)
-        if let Err(_) = executor.check_tools().await {
+        if let Err(e) = executor.check_tools().await {
+            println!("Tool check failed: {}, attempting install", e);
             executor.install_missing_tools().await?;
         }
 
         let source_file = self
             .write_source_file(&sandbox, &request, executor.file_extension())
             .await?;
+
+        println!("Wrote source file to: {:?}", source_file);
 
         // Setup sandbox environment
         executor.ensure_directories(&sandbox.root_dir).await?;
@@ -133,6 +139,7 @@ impl CodeExecutor {
             Language::JavaScript => Ok(Box::new(JavaScriptExecutor::new(None))),
             Language::TypeScript => Ok(Box::new(TypeScriptExecutor::new(None, None))),
             Language::Java => Ok(Box::new(JavaExecutor::new(None))),
+            Language::Rust => Ok(Box::new(RustExecutor::new(None))),
             Language::Go => Ok(Box::new(GoExecutor::new(None))),
             Language::Cpp => Ok(Box::new(CppExecutor::new(None, None))),
             Language::Php => Ok(Box::new(PhpExecutor::new(None))),

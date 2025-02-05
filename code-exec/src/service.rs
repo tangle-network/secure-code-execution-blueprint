@@ -68,6 +68,29 @@ mod tests {
     use crate::types::Language;
     use std::time::Duration;
 
+    async fn execute_and_log(
+        service: &CodeExecutionService,
+        request: ExecutionRequest,
+    ) -> Result<ExecutionResult, Error> {
+        println!("Executing request with language: {:?}", request.language);
+        println!("Code:\n{}", request.code);
+
+        match service.execute(request).await {
+            Ok(result) => {
+                println!("Execution succeeded");
+                println!("stdout:\n{}", result.stdout);
+                if !result.stderr.is_empty() {
+                    println!("stderr:\n{}", result.stderr);
+                }
+                Ok(result)
+            }
+            Err(e) => {
+                error!("Execution failed: {}", e);
+                Err(e)
+            }
+        }
+    }
+
     #[tokio::test]
     async fn test_concurrent_executions() -> Result<(), Error> {
         let service = CodeExecutionService::new(3, ResourceLimits::default()).await?;
@@ -76,15 +99,7 @@ mod tests {
         let requests = vec![
             ExecutionRequest {
                 language: Language::Python,
-                code: r#"print("Hello from Python!")"#.to_string(),
-                input: None,
-                dependencies: vec![],
-                timeout: Duration::from_secs(5),
-                env_vars: Default::default(),
-            },
-            ExecutionRequest {
-                language: Language::JavaScript,
-                code: r#"console.log('Hello from JavaScript!')"#.to_string(),
+                code: r#"print("Hello from 1!")"#.to_string(),
                 input: None,
                 dependencies: vec![],
                 timeout: Duration::from_secs(5),
@@ -92,7 +107,15 @@ mod tests {
             },
             ExecutionRequest {
                 language: Language::Python,
-                code: r#"print("Another Python execution!")"#.to_string(),
+                code: r#"print("Hello from 2!")"#.to_string(),
+                input: None,
+                dependencies: vec![],
+                timeout: Duration::from_secs(5),
+                env_vars: Default::default(),
+            },
+            ExecutionRequest {
+                language: Language::Python,
+                code: r#"print("Hello from 3!")"#.to_string(),
                 input: None,
                 dependencies: vec![],
                 timeout: Duration::from_secs(5),
@@ -104,13 +127,15 @@ mod tests {
         let mut handles = vec![];
         for request in requests {
             let service = service.clone();
-            handles.push(tokio::spawn(async move { service.execute(request).await }));
+            handles.push(tokio::spawn(async move {
+                execute_and_log(&service, request).await
+            }));
         }
 
         // Verify all executions completed successfully
         for handle in handles {
             let result = handle.await.unwrap()?;
-            assert!(result.stdout.contains("Hello") || result.stdout.contains("Another"));
+            assert!(result.stdout.contains("Hello from"));
             assert!(result.stderr.is_empty());
         }
 

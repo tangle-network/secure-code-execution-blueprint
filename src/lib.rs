@@ -6,7 +6,8 @@ use blueprint_sdk::event_listeners::tangle::services::{
 };
 use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
 use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
-
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
 #[derive(Clone, TangleClientContext, ServicesContext)]
@@ -15,12 +16,29 @@ pub struct ServiceContext {
     pub config: GadgetConfiguration,
     #[call_id]
     pub call_id: Option<u64>,
+    pub code_exec_url: String,
+    pub http_client: Client,
 }
 
-/// Returns "Hello World!" if `who` is `None`, otherwise returns "Hello, {who}!"
+#[derive(Debug, Serialize)]
+struct CodeExecutionRequest {
+    language: String,
+    code: String,
+    input: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CodeExecutionResponse {
+    stdout: String,
+    stderr: String,
+    execution_time: u64,
+    memory_usage: u64,
+}
+
+/// Execute code in the specified language
 #[blueprint_sdk::job(
     id = 0,
-    params(who),
+    params(language, code, input),
     result(_),
     event_listener(
         listener = TangleEventListener::<ServiceContext, JobCalled>,
@@ -28,11 +46,40 @@ pub struct ServiceContext {
         post_processor = services_post_processor,
     ),
 )]
-pub fn say_hello(who: Option<String>, context: ServiceContext) -> Result<String, Infallible> {
-    match who {
-        Some(who) => Ok(format!("Hello, {who}!")),
-        None => Ok("Hello World!".to_string()),
+pub async fn execute_code(
+    language: String,
+    code: String,
+    input: Option<String>,
+    context: ServiceContext,
+) -> Result<String, Error> {
+    let request = CodeExecutionRequest {
+        language,
+        code,
+        input,
+    };
+
+    let response = context
+        .http_client
+        .post(&format!("{}/execute", context.code_exec_url))
+        .json(&request)
+        .send()
+        .await?
+        .json::<CodeExecutionResponse>()
+        .await?;
+
+    if !response.stderr.is_empty() {
+        return Err(Error::ExecutionError(response.stderr));
     }
+
+    Ok(response.stdout)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("Execution error: {0}")]
+    ExecutionError(String),
 }
 
 #[cfg(test)]
@@ -42,10 +89,21 @@ mod tests {
     #[test]
     fn it_works() {
         let config = GadgetConfiguration::default();
-        let context = ServiceContext { config, call_id: None };
-        let result = say_hello(None, context.clone()).unwrap();
-        assert_eq!(result, "Hello World!");
-        let result = say_hello(Some("Alice".to_string()), context).unwrap();
-        assert_eq!(result, "Hello, Alice!");
+        let context = ServiceContext {
+            config,
+            call_id: None,
+            code_exec_url: "http://localhost:8080".to_string(),
+            http_client: Client::new(),
+        };
+        let result = deploy_code_exec(context.clone()).unwrap();
+        assert_eq!(result, "Code execution service deployed");
+        let result = execute_code(
+            "rust".to_string(),
+            "fn main() { println!(\"Hello, world!\"); }".to_string(),
+            None,
+            context,
+        )
+        .unwrap();
+        assert_eq!(result, "Hello, world!");
     }
 }

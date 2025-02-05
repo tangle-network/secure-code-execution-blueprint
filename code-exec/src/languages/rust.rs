@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tokio::{fs, process::Command};
 use tracing::info;
 
-use crate::{error::Error, executor::LanguageExecutor};
+use crate::{error::Error, executor::LanguageExecutor, languages::ToolCheck};
 
 pub struct RustExecutor {
     toolchain: String,
@@ -16,34 +16,50 @@ impl RustExecutor {
         }
     }
 
-    async fn create_cargo_toml(&self, sandbox_dir: &PathBuf, dependencies: &[crate::types::Dependency]) -> Result<(), Error> {
-        let mut cargo_toml = toml::toml! {
-            [package]
-            name = "code-execution"
-            version = "0.1.0"
-            edition = "2021"
+    async fn create_cargo_toml(
+        &self,
+        sandbox_dir: &PathBuf,
+        dependencies: &[crate::types::Dependency],
+    ) -> Result<(), Error> {
+        let mut manifest = toml::Table::new();
 
-            [dependencies]
-        };
+        // Add package section
+        let mut package = toml::Table::new();
+        package.insert("name".into(), "code-execution".into());
+        package.insert("version".into(), "0.1.0".into());
+        package.insert("edition".into(), "2021".into());
+        manifest.insert("package".into(), package.into());
 
-        // Add dependencies to Cargo.toml
-        let deps = cargo_toml.get_mut("dependencies").unwrap().as_table_mut().unwrap();
+        // Add dependencies section
+        let mut deps = toml::Table::new();
         for dep in dependencies {
-            let dep_spec = match &dep.source {
-                Some(source) => toml::toml!({ git = source }),
-                None => toml::toml!({ version = dep.version }),
-            };
-            deps.insert(dep.name.clone(), dep_spec);
+            let mut dep_spec = toml::Table::new();
+            match &dep.source {
+                Some(source) => {
+                    dep_spec.insert("git".into(), source.clone().into());
+                }
+                None => {
+                    dep_spec.insert("version".into(), dep.version.clone().into());
+                }
+            }
+            deps.insert(dep.name.clone(), dep_spec.into());
         }
+        manifest.insert("dependencies".into(), deps.into());
 
         fs::write(
             sandbox_dir.join("Cargo.toml"),
-            toml::to_string_pretty(&cargo_toml).unwrap(),
+            toml::to_string_pretty(&manifest).unwrap(),
         )
         .await
         .map_err(|e| Error::System(format!("Failed to write Cargo.toml: {}", e)))?;
 
         Ok(())
+    }
+}
+
+impl ToolCheck for RustExecutor {
+    fn required_tools(&self) -> Vec<&str> {
+        vec!["rustc", "cargo", "rustup"]
     }
 }
 
@@ -59,9 +75,9 @@ impl LanguageExecutor for RustExecutor {
 
     async fn setup_environment(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
         // Create src directory
-        fs::create_dir_all(sandbox_dir.join("src")).await.map_err(|e| {
-            Error::System(format!("Failed to create src directory: {}", e))
-        })?;
+        fs::create_dir_all(sandbox_dir.join("src"))
+            .await
+            .map_err(|e| Error::System(format!("Failed to create src directory: {}", e)))?;
 
         // Create basic Cargo.toml
         self.create_cargo_toml(sandbox_dir, &[]).await?;
@@ -113,6 +129,36 @@ impl LanguageExecutor for RustExecutor {
 
         Ok(())
     }
+
+    async fn check_tools(&self) -> Result<(), Error> {
+        let missing: Vec<_> = self
+            .required_tools()
+            .iter()
+            .filter(|tool| which::which(tool).is_err())
+            .map(|s| (*s).to_string())
+            .collect();
+
+        if !missing.is_empty() {
+            return Err(Error::System(format!(
+                "Missing required tools: {}",
+                missing.join(", ")
+            )));
+        }
+        Ok(())
+    }
+
+    async fn install_missing_tools(&self) -> Result<(), Error> {
+        ToolCheck::install_missing_tools(self).await
+    }
+
+    async fn ensure_directories(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
+        for dir in &["tmp", "src", "target"] {
+            tokio::fs::create_dir_all(sandbox_dir.join(dir))
+                .await
+                .map_err(|e| Error::System(format!("Failed to create {} directory: {}", dir, e)))?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -136,19 +182,25 @@ mod tests {
     async fn test_rust_compilation() {
         let dir = tempdir().unwrap();
         let executor = RustExecutor::new(None);
-        
-        executor.setup_environment(&dir.path().to_path_buf()).await.unwrap();
-        
+
+        executor
+            .setup_environment(&dir.path().to_path_buf())
+            .await
+            .unwrap();
+
         let source = r#"
             fn main() {
                 println!("Hello, World!");
             }
         "#;
-        
+
         let source_path = dir.path().join("tmp").join("source.rs");
         fs::write(&source_path, source).await.unwrap();
-        
-        assert!(executor.compile(&dir.path().to_path_buf(), &source_path).await.is_ok());
+
+        assert!(executor
+            .compile(&dir.path().to_path_buf(), &source_path)
+            .await
+            .is_ok());
         assert!(dir.path().join("target/release/code-execution").exists());
     }
-} 
+}

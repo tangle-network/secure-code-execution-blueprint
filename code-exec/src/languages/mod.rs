@@ -6,6 +6,7 @@ mod java;
 mod javascript;
 mod php;
 mod python;
+pub mod rust;
 mod swift;
 mod typescript;
 
@@ -15,6 +16,7 @@ pub use java::JavaExecutor;
 pub use javascript::JavaScriptExecutor;
 pub use php::PhpExecutor;
 pub use python::PythonExecutor;
+pub use rust::RustExecutor;
 pub use swift::SwiftExecutor;
 pub use typescript::TypeScriptExecutor;
 
@@ -54,7 +56,7 @@ pub trait ToolCheck {
                 ));
             };
 
-            // Map tool names to package names with OS-specific handling
+            // Map tool names to package names
             let packages = missing
                 .iter()
                 .map(|tool| {
@@ -100,14 +102,21 @@ pub trait ToolCheck {
                         "swift" => "swift",
                         "swiftc" => "swift",
                         "go" => "golang",
+                        // Add Rust tools
+                        "rustc" | "cargo" | "rustup" => {
+                            if pkg_mgr == "apt-get" {
+                                "curl" // We'll install rustup via curl
+                            } else {
+                                "rust"
+                            }
+                        }
                         _ => tool.as_str(),
                     }
                 })
                 .collect::<Vec<_>>();
 
-            // Add required repositories for certain package managers
+            // Keep existing repository setup
             if pkg_mgr == "apt-get" {
-                // Add universe repository for some packages
                 Command::new("apt-get")
                     .args(["install", "-y", "software-properties-common"])
                     .status()?;
@@ -135,19 +144,31 @@ pub trait ToolCheck {
                 )));
             }
 
-            // Verify installation
-            let still_missing: Vec<_> = self
-                .required_tools()
-                .iter()
-                .filter(|tool| which(tool).is_err())
-                .map(|s| (*s).to_string())
-                .collect();
+            // Add Rust-specific installation for apt systems
+            if pkg_mgr == "apt-get" && missing.iter().any(|t| t == "rustc" || t == "cargo") {
+                let status = Command::new("curl")
+                    .args([
+                        "--proto",
+                        "=https",
+                        "--tlsv1.2",
+                        "-sSf",
+                        "https://sh.rustup.rs",
+                    ])
+                    .stdout(std::process::Stdio::piped())
+                    .spawn()
+                    .and_then(|child| {
+                        Command::new("sh")
+                            .arg("-s")
+                            .arg("--")
+                            .arg("-y")
+                            .stdin(child.stdout.unwrap())
+                            .status()
+                    })
+                    .map_err(|e| Error::System(format!("Failed to install Rust: {}", e)))?;
 
-            if !still_missing.is_empty() {
-                return Err(Error::System(format!(
-                    "Failed to install tools: {}",
-                    still_missing.join(", ")
-                )));
+                if !status.success() {
+                    return Err(Error::System("Failed to install Rust".to_string()));
+                }
             }
         }
 

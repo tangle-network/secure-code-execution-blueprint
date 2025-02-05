@@ -48,4 +48,4 @@ pub struct DeploymentResponse {
     pub id: String,
     pub status: String,
     pub details: Option<HashMap<String, serde_json::Value>>,
-} 
+}

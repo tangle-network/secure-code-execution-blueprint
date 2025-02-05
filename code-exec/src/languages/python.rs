@@ -34,7 +34,10 @@ impl LanguageExecutor for PythonExecutor {
     }
 
     fn run_args(&self) -> Vec<String> {
-        vec!["main.py".to_string()]
+        vec![
+            "-c".to_string(),
+            "import sys; sys.path.append('tmp'); import main".to_string(),
+        ]
     }
 
     async fn setup_environment(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
@@ -50,10 +53,11 @@ impl LanguageExecutor for PythonExecutor {
             return Err(Error::System("Failed to create virtualenv".to_string()));
         }
 
-        // Create requirements.txt
-        fs::write(sandbox_dir.join("requirements.txt"), "")
-            .await
-            .map_err(|e| Error::System(format!("Failed to create requirements.txt: {}", e)))?;
+        // Create symlink to python in tmp directory
+        let venv_python = sandbox_dir.join("venv/bin/python3");
+        let tmp_python = sandbox_dir.join("tmp/python3");
+        std::os::unix::fs::symlink(&venv_python, &tmp_python)
+            .map_err(|e| Error::System(format!("Failed to create python symlink: {}", e)))?;
 
         Ok(())
     }
@@ -97,14 +101,14 @@ impl LanguageExecutor for PythonExecutor {
     }
 
     async fn compile(&self, sandbox_dir: &PathBuf, source_file: &PathBuf) -> Result<(), Error> {
-        // Move source file to main.py
-        fs::rename(source_file, sandbox_dir.join("main.py"))
+        // Move source file to tmp/main.py
+        fs::rename(source_file, sandbox_dir.join("tmp/main.py"))
             .await
             .map_err(|e| Error::System(format!("Failed to move source file: {}", e)))?;
 
         // Python is interpreted, but we can check syntax
         let status = Command::new(sandbox_dir.join("venv/bin/python3"))
-            .args(["-m", "py_compile", "main.py"])
+            .args(["-m", "py_compile", "tmp/main.py"])
             .current_dir(sandbox_dir)
             .status()
             .await

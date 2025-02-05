@@ -14,11 +14,11 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-COPY --from=chef /app/target/release/phala-tee-blueprint-template /usr/local/bin
+COPY --from=chef /app/target/release/secure-code-execution-blueprint /usr/local/bin
 
 LABEL org.opencontainers.image.authors="Drew Stone <drewstone329@gmail.com>"
 LABEL org.opencontainers.image.description="A Tangle Blueprint that deploys programs into Phala TEE cloud"
-LABEL org.opencontainers.image.source="https://github.com/tangle-network/phala-tee-blueprint-template"
+LABEL org.opencontainers.image.source="https://github.com/tangle-network/secure-code-execution-blueprint"
 LABEL org.opencontainers.image.licenses="MIT OR Apache-2.0"
 
 ENV RUST_LOG="gadget=info"
@@ -27,4 +27,4 @@ ENV BIND_PORT=9632
 ENV BLUEPRINT_ID=0
 ENV SERVICE_ID=0
 
-ENTRYPOINT ["/usr/local/bin/phala-tee-blueprint-template", "run"]
+ENTRYPOINT ["/usr/local/bin/secure-code-execution-blueprint", "run"]

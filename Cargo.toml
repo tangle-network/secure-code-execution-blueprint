@@ -1,12 +1,12 @@
 [package]
-name = "phala-tee-blueprint-template"
+name = "secure-code-execution-blueprint"
 version = "0.1.0"
 edition = "2021"
 description = "A Tangle Blueprint that deploys programs into Phala TEE cloud"
 authors = ["Drew Stone <drewstone329@gmail.com>"]
 license = "MIT OR Apache-2.0"
 homepage = "https://tangle.tools"
-repository = "https://github.com/tangle-network/phala-tee-blueprint-template"
+repository = "https://github.com/tangle-network/secure-code-execution-blueprint"
 readme = "README.md"
 categories = ["cryptography", "cryptography::cryptocurrencies"]
 keywords = ["tangle", "blueprint", "avs"]
@@ -14,6 +14,11 @@ rust-version = "1.81"
 
 [dependencies]
 blueprint-sdk = { git = "https://github.com/tangle-network/gadget", features = ["tangle", "macros"] }
+code-exec = { path = "code-exec" }
+reqwest = { version = "0.12.12", features = ["json"] }
+serde = { version = "1.0.217", features = ["derive"] }
+tee-deploy = { path = "tee-deploy" }
+thiserror = "2.0.11"
 
 [build-dependencies]
 blueprint-sdk = { git = "https://github.com/tangle-network/gadget", features = ["build"] }
@@ -26,7 +31,7 @@ color-eyre = "0.6.3"
 path = "src/lib.rs"
 
 [[bin]]
-name = "phala-tee-blueprint-template"
+name = "secure-code-execution-blueprint"
 path = "src/main.rs"
 
 [package.metadata.blueprint]
@@ -34,11 +39,11 @@ manager = { Evm = "HelloBlueprint" }
 
 [[package.metadata.gadget.Native.sources]]
 owner = "tangle-network"
-repo = "phala-tee-blueprint-template"
+repo = "secure-code-execution-blueprint"
 tag = "0.1.0"
 binaries = [
-    { arch = "Amd64", os = "Linux", name = "amd64-linux-phala-tee-blueprint-template-gadget" },
-    { arch = "Arm64", os = "Linux", name = "arm64-linux-phala-tee-blueprint-template-gadget" },
+    { arch = "Amd64", os = "Linux", name = "amd64-linux-secure-code-execution-blueprint-gadget" },
+    { arch = "Arm64", os = "Linux", name = "arm64-linux-secure-code-execution-blueprint-gadget" },
 ]
 
 [workspace]
