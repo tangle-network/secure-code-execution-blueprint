@@ -12,44 +12,6 @@ The service is designed to be:
 - 🛡️ Safe: Leverages TEE for secure code execution
 - 🔄 Scalable: Handles concurrent executions with proper resource management
 
-## 🎯 Features
-
-<div align="center">
-
-<kbd>
-  <h3>🌍 Languages</h3>
-  <b>Core</b><br/>
-  Python • JavaScript • Rust<br/><br/>
-  <b>Extended</b><br/>
-  Go • C++ • Java • PHP • Swift
-</kbd> &nbsp;&nbsp;&nbsp;
-
-<kbd>
-  <h3>🛡️ Security</h3>
-  <b>Isolation</b><br/>
-  TEE • Sandboxing • Process Control<br/><br/>
-  <b>Limits</b><br/>
-  Memory • CPU • Disk • Network
-</kbd> &nbsp;&nbsp;&nbsp;
-
-<kbd>
-  <h3>⚙️ Resources</h3>
-  <b>Management</b><br/>
-  Concurrent Execution • Auto Cleanup<br/><br/>
-  <b>Monitoring</b><br/>
-  Memory • CPU • Time • Analytics
-</kbd> &nbsp;&nbsp;&nbsp;
-
-<kbd>
-  <h3>🔌 Integration</h3>
-  <b>API</b><br/>
-  REST • Events • Metrics<br/><br/>
-  <b>Monitoring</b><br/>
-  Health • Status • Logs
-</kbd>
-
-</div>
-
 ### 💫 Key Capabilities
 
 | Capability                | Description                                               |
