@@ -3090,6 +3090,7 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "async-trait",
+ "gadget-std",
  "nix 0.29.0",
  "regex",
  "reqwest 0.11.27",

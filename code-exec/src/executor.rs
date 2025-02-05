@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use gadget_std::{end_timer, start_timer};
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -97,8 +98,10 @@ impl CodeExecutor {
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
+        // let exec_time = start_timer!(|| "execute");
+
         // Execute
-        let (stdout, stderr, execution_time) = self
+        let (stdout, stderr, process_stats) = self
             .sandbox
             .execute(
                 executor.run_command(),
@@ -113,12 +116,13 @@ impl CodeExecutor {
             )
             .await?;
 
+        // end_timer!(exec_time);
+
         Ok(ExecutionResult {
             status: ExecutionStatus::Success,
             stdout,
             stderr,
-            execution_time,
-            memory_usage: 0, // TODO: Implement memory tracking
+            process_stats,
         })
     }
 

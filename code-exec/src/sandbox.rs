@@ -1,4 +1,5 @@
-use crate::{error::Error, types::ResourceLimits};
+use crate::{error::Error, types::ResourceLimits, ProcessStats};
+use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     process::Stdio,
@@ -58,7 +59,7 @@ impl Sandbox {
         env: &[(String, String)],
         input: Option<&str>,
         timeout: Duration,
-    ) -> Result<(String, String, u64), Error> {
+    ) -> Result<(String, String, ProcessStats), Error> {
         let start = std::time::Instant::now();
 
         // Check if we can use unshare
@@ -98,6 +99,33 @@ impl Sandbox {
         let mut child = command
             .spawn()
             .map_err(|e| Error::Sandbox(format!("Failed to spawn sandboxed process: {}", e)))?;
+
+        let pid = child.id().expect("Failed to get process ID");
+        let mut peak_memory = 0;
+
+        // Monitor process memory usage
+        let memory_handle = tokio::spawn(async move {
+            while let Ok(true) = tokio::process::Command::new("ps")
+                .args(["-p", &pid.to_string(), "-o", "rss="])
+                .status()
+                .await
+                .map(|status| status.success())
+            {
+                if let Ok(output) = tokio::process::Command::new("ps")
+                    .args(["-p", &pid.to_string(), "-o", "rss="])
+                    .output()
+                    .await
+                {
+                    if let Ok(mem_str) = String::from_utf8(output.stdout) {
+                        if let Ok(current_mem) = mem_str.trim().parse::<u64>() {
+                            peak_memory = peak_memory.max(current_mem * 1024); // Convert KB to bytes
+                        }
+                    }
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            peak_memory
+        });
 
         // Write input if provided
         if let Some(input_str) = input {
@@ -161,33 +189,19 @@ impl Sandbox {
             )));
         }
 
-        let execution_time = start.elapsed().as_millis() as u64;
+        let peak_memory = memory_handle
+            .await
+            .map_err(|e| Error::Sandbox(format!("Failed to monitor process memory: {}", e)))?;
 
-        Ok((output.1, output.2, execution_time))
-    }
+        let execution_time = start.elapsed();
 
-    /// Set up cgroup limits for the sandbox
-    async fn setup_cgroups(&self) -> Result<(), Error> {
-        // Create cgroup
-        let cgroup_path = PathBuf::from("/sys/fs/cgroup/sandbox").join(&self.id);
+        let stats = ProcessStats {
+            memory_usage: peak_memory, // Final memory usage
+            peak_memory,               // Peak memory usage during execution
+            execution_time,
+        };
 
-        // Set up memory limit
-        fs::write(
-            cgroup_path.join("memory.max"),
-            self.limits.memory.to_string(),
-        )
-        .await
-        .map_err(|e| Error::Sandbox(format!("Failed to set memory limit: {}", e)))?;
-
-        // Set up CPU limit
-        fs::write(
-            cgroup_path.join("cpu.max"),
-            format!("{} 100000", self.limits.cpu_time * 100000),
-        )
-        .await
-        .map_err(|e| Error::Sandbox(format!("Failed to set CPU limit: {}", e)))?;
-
-        Ok(())
+        Ok((output.1, output.2, stats))
     }
 }
 
@@ -241,7 +255,7 @@ mod tests {
 
         assert_eq!(stdout.trim(), "Hello, World!");
         assert!(stderr.is_empty());
-        assert!(time < 1000);
+        assert!(time.execution_time < Duration::from_millis(1000));
         Ok(())
     }
 

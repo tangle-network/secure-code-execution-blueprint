@@ -49,6 +49,14 @@ pub struct Dependency {
     pub source: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessStats {
+    pub memory_usage: u64,
+    pub peak_memory: u64,
+    #[serde(with = "duration_serde")]
+    pub execution_time: Duration,
+}
+
 /// Execution result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionResult {
@@ -58,10 +66,8 @@ pub struct ExecutionResult {
     pub stdout: String,
     /// Program errors (stderr)
     pub stderr: String,
-    /// Execution time in milliseconds
-    pub execution_time: u64,
-    /// Memory usage in bytes
-    pub memory_usage: u64,
+    /// Process statistics
+    pub process_stats: ProcessStats,
 }
 
 /// Execution status

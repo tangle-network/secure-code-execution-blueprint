@@ -5,6 +5,7 @@ use tokio::{fs, process::Command};
 use which::which;
 
 use crate::languages::ToolCheck;
+use crate::ExecutionResult;
 use crate::{error::Error, executor::LanguageExecutor};
 
 pub struct SwiftExecutor {

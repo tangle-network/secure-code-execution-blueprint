@@ -9,6 +9,7 @@ mod languages;
 mod sandbox;
 mod types;
 
+pub use crate::languages::TypeScriptExecutor;
 pub use error::Error;
 pub use executor::CodeExecutor;
 pub use types::*;
