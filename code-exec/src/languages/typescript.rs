@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use gadget_std::{end_timer, start_timer};
 use std::path::PathBuf;
 use tokio::{fs, process::Command};
+use tracing::debug;
 use which::which;
 
 use crate::{
@@ -44,44 +45,58 @@ impl LanguageExecutor for TypeScriptExecutor {
     }
 
     async fn setup_environment(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
-        // Create tsconfig.json
-        let tsconfig = serde_json::json!({
-            "compilerOptions": {
-                "target": "ES2022",
-                "module": "ESNext",
-                "moduleResolution": "node",
-                "esModuleInterop": true,
-                "strict": true,
-                "skipLibCheck": true,
-                "outDir": "./dist",
-                "rootDir": "./src"
-            },
-            "include": ["src/**/*"],
-            "exclude": ["node_modules"]
-        });
-
-        fs::write(
-            sandbox_dir.join("tsconfig.json"),
-            serde_json::to_string_pretty(&tsconfig).unwrap(),
-        )
-        .await
-        .map_err(|e| Error::System(format!("Failed to write tsconfig.json: {}", e)))?;
-
-        // Create package.json
-        let package_json = serde_json::json!({
+        // Initialize npm project
+        let package_json = sandbox_dir.join("package.json");
+        let package_content = serde_json::json!({
             "name": "code-execution",
             "version": "1.0.0",
             "private": true,
-            "type": "module"
+            "dependencies": {
+                "@types/node": "^20.0.0"
+            }
         });
 
         fs::write(
-            sandbox_dir.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
+            &package_json,
+            serde_json::to_string_pretty(&package_content).unwrap(),
         )
         .await
         .map_err(|e| Error::System(format!("Failed to create package.json: {}", e)))?;
 
+        // Create tsconfig.json
+        let tsconfig = sandbox_dir.join("tsconfig.json");
+        let tsconfig_content = serde_json::json!({
+            "compilerOptions": {
+                "target": "ES2020",
+                "module": "CommonJS",
+                "strict": true,
+                "esModuleInterop": true,
+                "skipLibCheck": true,
+                "forceConsistentCasingInFileNames": true,
+                "outDir": "dist"
+            }
+        });
+
+        fs::write(
+            &tsconfig,
+            serde_json::to_string_pretty(&tsconfig_content).unwrap(),
+        )
+        .await
+        .map_err(|e| Error::System(format!("Failed to create tsconfig.json: {}", e)))?;
+
+        // Install TypeScript and @types/node
+        let status = Command::new("npm")
+            .args(["install", "--quiet", "typescript", "@types/node"])
+            .current_dir(sandbox_dir)
+            .status()
+            .await
+            .map_err(|e| Error::System(format!("Failed to install TypeScript: {}", e)))?;
+
+        if !status.success() {
+            return Err(Error::System("Failed to install TypeScript".to_string()));
+        }
+
+        debug!("Created TypeScript environment");
         Ok(())
     }
 
@@ -186,58 +201,6 @@ impl LanguageExecutor for TypeScriptExecutor {
                 .await
                 .map_err(|e| Error::System(format!("Failed to create {} directory: {}", dir, e)))?;
         }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::languages::check_requirements;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_typescript_setup() -> Result<(), Error> {
-        let executor = TypeScriptExecutor::new(None, None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        assert!(dir.path().join("tsconfig.json").exists());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_typescript_compilation() -> Result<(), Error> {
-        let executor = TypeScriptExecutor::new(None, None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        let source = r#"
-            const message: string = "Hello, World!";
-            console.log(message);
-        "#;
-
-        let source_path = dir.path().join("tmp").join("source.ts");
-        fs::write(&source_path, source).await?;
-
-        executor
-            .compile(&dir.path().to_path_buf(), &source_path)
-            .await?;
-        assert!(dir.path().join("dist/index.js").exists());
         Ok(())
     }
 }

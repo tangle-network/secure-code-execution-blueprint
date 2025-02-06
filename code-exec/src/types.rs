@@ -1,3 +1,4 @@
+use nix::sys::resource::Usage;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -10,12 +11,8 @@ pub enum Language {
     Python,
     JavaScript,
     TypeScript,
-    Java,
     Rust,
     Go,
-    Cpp,
-    Php,
-    Swift,
 }
 
 impl FromStr for Language {
@@ -26,12 +23,8 @@ impl FromStr for Language {
             "python" => Ok(Language::Python),
             "javascript" => Ok(Language::JavaScript),
             "typescript" => Ok(Language::TypeScript),
-            "java" => Ok(Language::Java),
             "rust" => Ok(Language::Rust),
             "go" => Ok(Language::Go),
-            "cpp" => Ok(Language::Cpp),
-            "php" => Ok(Language::Php),
-            "swift" => Ok(Language::Swift),
             _ => Err(format!("Unsupported language: {}", s)),
         }
     }
@@ -70,10 +63,28 @@ pub struct Dependency {
     pub source: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessStats {
-    pub memory_usage: u64,
-    pub peak_memory: u64,
+    /// Peak memory usage in bytes
+    pub max_rss: u64,
+    /// Number of page faults that didn't require I/O
+    pub minor_page_faults: u64,
+    /// Number of page faults that required I/O
+    pub major_page_faults: u64,
+    /// Number of block input operations
+    pub block_reads: u64,
+    /// Number of block output operations  
+    pub block_writes: u64,
+    /// Number of voluntary context switches
+    pub voluntary_context_switches: u64,
+    /// Number of involuntary context switches
+    pub involuntary_context_switches: u64,
+    /// Total user CPU time
+    #[serde(with = "duration_serde")]
+    pub user_time: Duration,
+    /// Total system CPU time
+    #[serde(with = "duration_serde")]
+    pub system_time: Duration,
     #[serde(with = "duration_serde")]
     pub execution_time: Duration,
 }

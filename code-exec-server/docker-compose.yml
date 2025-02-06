@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  code-exec:
+    build:
+      context: ..
+      dockerfile: code-exec-server/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - /tmp:/tmp # For sandbox directories
+    security_opt:
+      - seccomp=unconfined # Required for sandbox operations
+    cap_add:
+      - SYS_ADMIN # Required for resource limits
+    command:
+      - "--addr"
+      - "0.0.0.0:3000"
+      - "--max-concurrent"
+      - "10"
+      - "--memory-limit"
+      - "104857600" # 100MB
+      - "--cpu-time-limit"
+      - "5"
+      - "--max-processes"
+      - "10"
+      - "--file-size-limit"
+      - "10485760" # 10MB
+      - "--disk-space-limit"
+      - "104857600" # 100MB

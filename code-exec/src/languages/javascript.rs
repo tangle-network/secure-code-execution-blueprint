@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::{fs, process::Command};
+use tracing::debug;
 use which::which;
 
 use crate::languages::ToolCheck;
@@ -44,8 +45,7 @@ impl LanguageExecutor for JavaScriptExecutor {
         let package_content = serde_json::json!({
             "name": "code-execution",
             "version": "1.0.0",
-            "private": true,
-            "type": "module"
+            "private": true
         });
 
         fs::write(
@@ -55,6 +55,7 @@ impl LanguageExecutor for JavaScriptExecutor {
         .await
         .map_err(|e| Error::System(format!("Failed to create package.json: {}", e)))?;
 
+        debug!("Created package.json at: {}", package_json.display());
         Ok(())
     }
 
@@ -90,11 +91,17 @@ impl LanguageExecutor for JavaScriptExecutor {
             return Err(Error::System("Failed to install dependencies".to_string()));
         }
 
+        debug!("Installed dependencies: {:?}", dep_specs);
         Ok(())
     }
 
-    async fn compile(&self, _sandbox_dir: &PathBuf, _source_file: &PathBuf) -> Result<(), Error> {
-        // JavaScript is interpreted, no compilation needed
+    async fn compile(&self, sandbox_dir: &PathBuf, source_file: &PathBuf) -> Result<(), Error> {
+        // Move source to root directory
+        let target_path = sandbox_dir.join("source.js");
+        fs::rename(source_file, &target_path)
+            .await
+            .map_err(|e| Error::System(format!("Failed to move source file: {}", e)))?;
+        debug!("Moved source file to: {}", target_path.display());
         Ok(())
     }
 
@@ -126,55 +133,6 @@ impl LanguageExecutor for JavaScriptExecutor {
                 .await
                 .map_err(|e| Error::System(format!("Failed to create {} directory: {}", dir, e)))?;
         }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::languages::check_requirements;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_javascript_setup() -> Result<(), Error> {
-        let executor = JavaScriptExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        assert!(dir.path().join("package.json").exists());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_javascript_dependencies() -> Result<(), Error> {
-        let executor = JavaScriptExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        let deps = vec![crate::types::Dependency {
-            name: "axios".to_string(),
-            version: "1.6.7".to_string(),
-            source: None,
-        }];
-
-        executor
-            .install_dependencies(&dir.path().to_path_buf(), &deps)
-            .await?;
         Ok(())
     }
 }

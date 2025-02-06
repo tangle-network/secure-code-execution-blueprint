@@ -50,5 +50,7 @@ binaries = [
 members = [
     ".",
     "code-exec",
+    "code-exec/ldm",
+    "code-exec-server",
     "tee-deploy",
 ]

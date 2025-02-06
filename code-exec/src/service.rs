@@ -44,10 +44,13 @@ impl CodeExecutionService {
         );
 
         // Create new sandbox for this execution
-        let sandbox = Sandbox::new(self.resource_limits.clone()).await?;
+        let mut sandbox = Sandbox::new(self.resource_limits.clone()).await?;
 
         // Execute using shared executor but with isolated sandbox
-        let result = self.executor.execute_in_sandbox(request, sandbox).await;
+        let result = self
+            .executor
+            .execute_in_sandbox(request, &mut sandbox)
+            .await;
 
         match &result {
             Ok(_) => info!("Code execution completed successfully"),
@@ -72,16 +75,9 @@ mod tests {
         service: &CodeExecutionService,
         request: ExecutionRequest,
     ) -> Result<ExecutionResult, Error> {
-        println!("Executing request with language: {:?}", request.language);
-        println!("Code:\n{}", request.code);
-
         match service.execute(request).await {
             Ok(result) => {
-                println!("Execution succeeded");
-                println!("stdout:\n{}", result.stdout);
-                if !result.stderr.is_empty() {
-                    println!("stderr:\n{}", result.stderr);
-                }
+                if !result.stderr.is_empty() {}
                 Ok(result)
             }
             Err(e) => {

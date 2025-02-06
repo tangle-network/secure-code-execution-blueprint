@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  code-exec:
+    build:
+      context: .
+      dockerfile: code-exec-server/Dockerfile
+    ports:
+      - "3000:3000"
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
+    volumes:
+      - /tmp:/tmp
+    environment:
+      - RUST_LOG=info,tower_http=debug
+    command: >
+      --addr 0.0.0.0:3000
+      --max-concurrent 10
+      --memory-limit 104857600
+      --cpu-time-limit 5
+      --max-processes 10
+      --file-size-limit 10485760
+      --disk-space-limit 104857600

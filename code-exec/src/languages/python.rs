@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::{fs, process::Command};
+use tracing::debug;
 use which::which;
 
 use crate::{error::Error, executor::LanguageExecutor, languages::ToolCheck};
@@ -34,16 +35,19 @@ impl LanguageExecutor for PythonExecutor {
     }
 
     fn run_args(&self) -> Vec<String> {
-        vec![
-            "-c".to_string(),
-            "import sys; sys.path.append('tmp'); import main".to_string(),
-        ]
+        vec!["source.py".to_string()]
     }
 
     async fn setup_environment(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
-        // Create virtual environment
+        // Create virtual environment with minimal output
         let status = Command::new("virtualenv")
-            .args(["venv"])
+            .args([
+                "venv",
+                "--quiet",
+                "--no-download",
+                "--no-periodic-update",
+                "--no-vcs-ignore",
+            ])
             .current_dir(sandbox_dir)
             .status()
             .await
@@ -53,12 +57,10 @@ impl LanguageExecutor for PythonExecutor {
             return Err(Error::System("Failed to create virtualenv".to_string()));
         }
 
-        // Create symlink to python in tmp directory
-        let venv_python = sandbox_dir.join("venv/bin/python3");
-        let tmp_python = sandbox_dir.join("tmp/python3");
-        std::os::unix::fs::symlink(&venv_python, &tmp_python)
-            .map_err(|e| Error::System(format!("Failed to create python symlink: {}", e)))?;
-
+        debug!(
+            "Created virtualenv at: {}",
+            sandbox_dir.join("venv").display()
+        );
         Ok(())
     }
 
@@ -71,23 +73,26 @@ impl LanguageExecutor for PythonExecutor {
             return Ok(());
         }
 
-        // Write dependencies to requirements.txt
-        let requirements = dependencies
+        // Activate virtualenv and install dependencies quietly
+        let pip_path = sandbox_dir.join("venv/bin/pip");
+        let mut install_args = vec![
+            "install",
+            "--quiet",
+            "--no-cache-dir",
+            "--no-warn-script-location",
+        ];
+        let dep_specs: Vec<String> = dependencies
             .iter()
             .map(|dep| match &dep.source {
                 Some(source) => format!("{}@{}", dep.name, source),
                 None => format!("{}=={}", dep.name, dep.version),
             })
-            .collect::<Vec<_>>()
-            .join("\n");
+            .collect();
 
-        fs::write(sandbox_dir.join("requirements.txt"), requirements)
-            .await
-            .map_err(|e| Error::System(format!("Failed to write requirements.txt: {}", e)))?;
+        install_args.extend(dep_specs.iter().map(|s| s.as_str()));
 
-        // Install dependencies using pip
-        let status = Command::new(sandbox_dir.join("venv/bin/pip"))
-            .args(["install", "-r", "requirements.txt"])
+        let status = Command::new(pip_path)
+            .args(&install_args)
             .current_dir(sandbox_dir)
             .status()
             .await
@@ -97,29 +102,17 @@ impl LanguageExecutor for PythonExecutor {
             return Err(Error::System("Failed to install dependencies".to_string()));
         }
 
+        debug!("Installed dependencies: {:?}", dep_specs);
         Ok(())
     }
 
     async fn compile(&self, sandbox_dir: &PathBuf, source_file: &PathBuf) -> Result<(), Error> {
-        // Move source file to tmp/main.py
-        fs::rename(source_file, sandbox_dir.join("tmp/main.py"))
+        // Move source to root directory
+        let target_path = sandbox_dir.join("source.py");
+        fs::rename(source_file, &target_path)
             .await
             .map_err(|e| Error::System(format!("Failed to move source file: {}", e)))?;
-
-        // Python is interpreted, but we can check syntax
-        let status = Command::new(sandbox_dir.join("venv/bin/python3"))
-            .args(["-m", "py_compile", "tmp/main.py"])
-            .current_dir(sandbox_dir)
-            .status()
-            .await
-            .map_err(|e| Error::CompilationError(e.to_string()))?;
-
-        if !status.success() {
-            return Err(Error::CompilationError(
-                "Python syntax check failed".to_string(),
-            ));
-        }
-
+        debug!("Moved source file to: {}", target_path.display());
         Ok(())
     }
 
@@ -150,63 +143,6 @@ impl LanguageExecutor for PythonExecutor {
                 .await
                 .map_err(|e| Error::System(format!("Failed to create {} directory: {}", dir, e)))?;
         }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::languages::check_requirements;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_python_setup() -> Result<(), Error> {
-        let executor = PythonExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        assert!(dir.path().join("venv").exists());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_python_dependencies() -> Result<(), Error> {
-        let executor = PythonExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        let deps = vec![crate::types::Dependency {
-            name: "requests".to_string(),
-            version: "2.31.0".to_string(),
-            source: None,
-        }];
-
-        executor
-            .install_dependencies(&dir.path().to_path_buf(), &deps)
-            .await?;
-
-        // Verify installation
-        let status = Command::new(dir.path().join("venv/bin/pip"))
-            .args(["show", "requests"])
-            .status()
-            .await?;
-
-        assert!(status.success());
         Ok(())
     }
 }

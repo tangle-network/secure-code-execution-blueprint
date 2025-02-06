@@ -10,6 +10,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
+pub mod firecracker;
+
 #[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct ServiceContext {
     #[config]

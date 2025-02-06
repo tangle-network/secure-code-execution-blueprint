@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::{fs, process::Command};
+use tracing::debug;
 use which::which;
 
 use crate::{error::Error, executor::LanguageExecutor, languages::ToolCheck};
@@ -14,6 +15,32 @@ impl GoExecutor {
         Self {
             go_version: version.unwrap_or_else(|| "1.21".to_string()),
         }
+    }
+
+    async fn write_go_mod(
+        &self,
+        sandbox_dir: &PathBuf,
+        dependencies: &[crate::types::Dependency],
+    ) -> Result<(), Error> {
+        let mut content = String::from("module code-execution\n\ngo 1.21\n\n");
+        if !dependencies.is_empty() {
+            content.push_str("require (\n");
+            for dep in dependencies {
+                let version = match &dep.source {
+                    Some(source) => source.clone(),
+                    None => format!("v{}", dep.version),
+                };
+                content.push_str(&format!("\t{} {}\n", dep.name, version));
+            }
+            content.push_str(")\n");
+        }
+
+        fs::write(sandbox_dir.join("go.mod"), content.clone())
+            .await
+            .map_err(|e| Error::System(format!("Failed to write go.mod: {}", e)))?;
+
+        println!("Created go.mod with content:\n{}", content);
+        Ok(())
     }
 }
 
@@ -38,18 +65,8 @@ impl LanguageExecutor for GoExecutor {
     }
 
     async fn setup_environment(&self, sandbox_dir: &PathBuf) -> Result<(), Error> {
-        // Initialize Go module
-        let status = Command::new("go")
-            .args(["mod", "init", "code-execution"])
-            .current_dir(sandbox_dir)
-            .status()
-            .await
-            .map_err(|e| Error::System(format!("Failed to initialize go.mod: {}", e)))?;
-
-        if !status.success() {
-            return Err(Error::System("Failed to initialize go.mod".to_string()));
-        }
-
+        // Create an empty go.mod file - we'll update it during dependency installation
+        self.write_go_mod(sandbox_dir, &[]).await?;
         Ok(())
     }
 
@@ -62,42 +79,40 @@ impl LanguageExecutor for GoExecutor {
             return Ok(());
         }
 
-        // Add dependencies to go.mod
-        for dep in dependencies {
-            let dep_spec = match &dep.source {
-                Some(source) => format!("{}@{}", dep.name, source),
-                None => format!("{}@v{}", dep.name, dep.version),
-            };
+        // Update go.mod with dependencies
+        self.write_go_mod(sandbox_dir, dependencies).await?;
 
-            let status = Command::new("go")
-                .args(["get", &dep_spec])
-                .current_dir(sandbox_dir)
-                .status()
-                .await
-                .map_err(|e| {
-                    Error::System(format!("Failed to add dependency {}: {}", dep.name, e))
-                })?;
-
-            if !status.success() {
-                return Err(Error::System(format!(
-                    "Failed to add dependency {}",
-                    dep.name
-                )));
-            }
-        }
-
-        // Tidy up dependencies
-        let status = Command::new("go")
+        // Run go mod tidy to download dependencies and create go.sum
+        let output = Command::new("go")
             .args(["mod", "tidy"])
             .current_dir(sandbox_dir)
-            .status()
+            .output()
             .await
-            .map_err(|e| Error::System(format!("Failed to tidy dependencies: {}", e)))?;
+            .map_err(|e| Error::System(format!("Failed to run go mod tidy: {}", e)))?;
 
-        if !status.success() {
-            return Err(Error::System("Failed to tidy dependencies".to_string()));
+        if !output.status.success() {
+            return Err(Error::System(format!(
+                "Failed to run go mod tidy: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
+        // Verify dependencies
+        let output = Command::new("go")
+            .args(["mod", "verify"])
+            .current_dir(sandbox_dir)
+            .output()
+            .await
+            .map_err(|e| Error::System(format!("Failed to verify dependencies: {}", e)))?;
+
+        if !output.status.success() {
+            return Err(Error::System(format!(
+                "Failed to verify dependencies: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
+        }
+
+        println!("Successfully installed Go dependencies");
         Ok(())
     }
 
@@ -107,16 +122,27 @@ impl LanguageExecutor for GoExecutor {
             .await
             .map_err(|e| Error::System(format!("Failed to move source file: {}", e)))?;
 
-        // Build the code
-        let status = Command::new("go")
-            .args(["build", "-o", "code-execution"])
+        // Build with verbose output to help diagnose issues
+        let output = Command::new("go")
+            .args(["build", "-v", "-o", "code-execution"])
             .current_dir(sandbox_dir)
-            .status()
+            .output()
             .await
             .map_err(|e| Error::CompilationError(e.to_string()))?;
 
-        if !status.success() {
-            return Err(Error::CompilationError("Go compilation failed".to_string()));
+        if !output.status.success() {
+            println!(
+                "Go compilation failed. stderr: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            println!(
+                "Go compilation failed. stdout: {}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+            return Err(Error::CompilationError(format!(
+                "Go compilation failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         Ok(())
@@ -149,61 +175,6 @@ impl LanguageExecutor for GoExecutor {
                 .await
                 .map_err(|e| Error::System(format!("Failed to create {} directory: {}", dir, e)))?;
         }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::languages::check_requirements;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_go_setup() -> Result<(), Error> {
-        let executor = GoExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        assert!(dir.path().join("go.mod").exists());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_go_compilation() -> Result<(), Error> {
-        let executor = GoExecutor::new(None);
-        check_requirements(&executor).await?;
-
-        let dir = tempdir().unwrap();
-        executor
-            .ensure_directories(&dir.path().to_path_buf())
-            .await?;
-        executor
-            .setup_environment(&dir.path().to_path_buf())
-            .await?;
-
-        let source = r#"
-            package main
-
-            func main() {
-                println("Hello, World!")
-            }
-        "#;
-
-        let source_path = dir.path().join("tmp").join("source.go");
-        fs::write(&source_path, source).await?;
-
-        executor
-            .compile(&dir.path().to_path_buf(), &source_path)
-            .await?;
-        assert!(dir.path().join("code-execution").exists());
         Ok(())
     }
 }

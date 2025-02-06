@@ -5,10 +5,7 @@ use tracing::debug;
 
 use crate::{
     error::Error,
-    languages::{
-        CppExecutor, GoExecutor, JavaExecutor, JavaScriptExecutor, PhpExecutor, PythonExecutor,
-        RustExecutor, SwiftExecutor, TypeScriptExecutor,
-    },
+    languages::{GoExecutor, JavaScriptExecutor, PythonExecutor, RustExecutor, TypeScriptExecutor},
     sandbox::Sandbox,
     types::{ExecutionRequest, ExecutionResult, ExecutionStatus, Language},
 };
@@ -63,23 +60,18 @@ impl CodeExecutor {
     pub async fn execute_in_sandbox(
         &self,
         request: ExecutionRequest,
-        sandbox: Sandbox,
+        sandbox: &mut Sandbox,
     ) -> Result<ExecutionResult, Error> {
         let executor = self.create_executor(request.language)?;
 
-        println!("Created executor for language: {:?}", request.language);
-
         // Check/install tools only if needed (shared across executions)
         if let Err(e) = executor.check_tools().await {
-            println!("Tool check failed: {}, attempting install", e);
             executor.install_missing_tools().await?;
         }
 
         let source_file = self
             .write_source_file(&sandbox, &request, executor.file_extension())
             .await?;
-
-        println!("Wrote source file to: {:?}", source_file);
 
         // Setup sandbox environment
         executor.ensure_directories(&sandbox.root_dir).await?;
@@ -128,8 +120,21 @@ impl CodeExecutor {
         extension: &str,
     ) -> Result<PathBuf, Error> {
         let filename = format!("source.{}", extension);
-        let path = sandbox.root_dir.join("tmp").join(filename);
+        // Write to the root directory instead of tmp for interpreted languages
+        let path = match request.language {
+            Language::JavaScript | Language::TypeScript | Language::Python => {
+                sandbox.root_dir.join(&filename)
+            }
+            _ => sandbox.root_dir.join("tmp").join(&filename),
+        };
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await.map_err(Error::Io)?;
+        }
+
         fs::write(&path, &request.code).await.map_err(Error::Io)?;
+        debug!("Created source file at: {}", path.display());
         Ok(path)
     }
 
@@ -138,12 +143,8 @@ impl CodeExecutor {
             Language::Python => Ok(Box::new(PythonExecutor::new(None))),
             Language::JavaScript => Ok(Box::new(JavaScriptExecutor::new(None))),
             Language::TypeScript => Ok(Box::new(TypeScriptExecutor::new(None, None))),
-            Language::Java => Ok(Box::new(JavaExecutor::new(None))),
             Language::Rust => Ok(Box::new(RustExecutor::new(None))),
             Language::Go => Ok(Box::new(GoExecutor::new(None))),
-            Language::Cpp => Ok(Box::new(CppExecutor::new(None, None))),
-            Language::Php => Ok(Box::new(PhpExecutor::new(None))),
-            Language::Swift => Ok(Box::new(SwiftExecutor::new(None))),
         }
     }
 }

@@ -1,8 +1,9 @@
+use crate::{CodeExecutionServer, CodeExecutionService, ResourceLimits};
+use blueprint::firecracker::{FirecrackerConfig, FirecrackerManager};
 use blueprint_sdk::logging;
 use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::tangle::tangle::TangleConfig;
 use blueprint_sdk::tokio::task;
-use code_exec::{CodeExecutionServer, CodeExecutionService, ResourceLimits};
 use reqwest::Client;
 use secure_code_execution_blueprint as blueprint;
 use std::time::Duration;
@@ -12,6 +13,19 @@ const MAX_CONCURRENT_EXECUTIONS: usize = 10;
 
 #[blueprint_sdk::main(env)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize Firecracker
+    let fc_config = FirecrackerConfig::default();
+    let fc_manager = FirecrackerManager::new(fc_config.clone());
+
+    // Check KVM availability
+    fc_manager.check_kvm_available().await?;
+
+    // Setup network
+    fc_manager.setup_network().await?;
+
+    // Start Firecracker VM
+    fc_manager.start().await?;
+
     // Initialize the code execution service
     let service =
         CodeExecutionService::new(MAX_CONCURRENT_EXECUTIONS, ResourceLimits::default()).await?;
@@ -39,14 +53,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let execute_handler = blueprint::ExecuteCodeEventHandler::new(&env, context).await?;
 
     logging::info!("Starting the event watcher ...");
-    let tangle_config = TangleConfig::default();
-    BlueprintRunner::new(tangle_config, env)
-        .job(execute_handler)
-        .run()
-        .await?;
+    let tangle_config = TangleConfig::default().with_exit_after_register(false);
+
+    let runner = BlueprintRunner::new(tangle_config, env).job(execute_handler);
+
+    // Run the blueprint
+    runner.run().await?;
 
     // Wait for the server to finish (which should be never)
     server_handle.await?;
+
+    // Stop Firecracker VM
+    fc_manager.stop().await?;
 
     logging::info!("Exiting...");
     Ok(())
