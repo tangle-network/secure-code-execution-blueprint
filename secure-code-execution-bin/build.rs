@@ -1,6 +1,6 @@
 use blueprint_sdk::build;
 use blueprint_sdk::tangle::blueprint;
-use secure_code_execution_blueprint_blueprint_lib::execute_code;
+use secure_code_execution_lib::execute_code;
 use std::path::Path;
 use std::process;
 
@@ -14,7 +14,7 @@ fn main() {
     build::utils::soldeer_update();
     build::utils::build_contracts(contract_dirs);
 
-    println!("cargo::rerun-if-changed=../secure-code-execution-blueprint-lib");
+    println!("cargo::rerun-if-changed=../secure-code-execution-lib");
 
     // The `blueprint!` macro generates the info necessary for the `blueprint.json`.
     // See its docs for all available metadata fields.

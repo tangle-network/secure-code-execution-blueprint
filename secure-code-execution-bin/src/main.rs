@@ -11,9 +11,7 @@ use blueprint_sdk::tangle::consumer::TangleConsumer;
 use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
-use secure_code_execution_blueprint_blueprint_lib::{
-    EXECUTE_CODE_JOB_ID, ServiceContext, execute_code,
-};
+use secure_code_execution_lib::{EXECUTE_CODE_JOB_ID, ServiceContext, execute_code};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;

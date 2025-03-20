@@ -1,12 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "code-exec",
-    "code-exec/ldm",
-    "code-exec-server",
-    "secure-code-execution-blueprint-lib",
-    "secure-code-execution-blueprint-bin",
-]
+members = ["code-exec", "code-exec/ldm", "code-exec-server", "secure-code-execution-lib", "secure-code-execution-bin"]
 
 [workspace.package]
 version = "0.1.0"
@@ -21,7 +15,7 @@ categories = ["cryptography", "cryptography::cryptocurrencies"]
 keywords = ["tangle", "blueprint", "avs"]
 
 [workspace.dependencies]
-secure-code-execution-blueprint-blueprint-lib = { path = "secure-code-execution-blueprint-lib" }
+secure-code-execution-lib = { path = "secure-code-execution-lib" }
 
 blueprint-sdk = { git = "https://github.com/tangle-network/blueprint.git", default-features = false }
 tokio = { version = "1.43.0", default-features = false }

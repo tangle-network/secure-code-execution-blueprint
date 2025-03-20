@@ -14778,11 +14778,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "secure-code-execution-blueprint-blueprint-bin"
+name = "secure-code-execution-bin"
 version = "0.1.0"
 dependencies = [
  "blueprint-sdk",
- "secure-code-execution-blueprint-blueprint-lib",
+ "secure-code-execution-lib",
  "tokio",
  "tower 0.5.2",
  "tracing",
@@ -14790,7 +14790,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "secure-code-execution-blueprint-blueprint-lib"
+name = "secure-code-execution-lib"
 version = "0.1.0"
 dependencies = [
  "blueprint-sdk",
