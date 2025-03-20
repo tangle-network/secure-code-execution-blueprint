@@ -12,17 +12,6 @@ The service is designed to be:
 - 🛡️ Safe: Leverages TEE for secure code execution
 - 🔄 Scalable: Handles concurrent executions with proper resource management
 
-### 💫 Key Capabilities
-
-| Capability                | Description                                               |
-| ------------------------- | --------------------------------------------------------- |
-| **Execution Isolation**   | Each code snippet runs in its own sandboxed environment   |
-| **Resource Control**      | Fine-grained control over memory, CPU, and disk usage     |
-| **Concurrent Processing** | Handle multiple code executions simultaneously            |
-| **Security Measures**     | TEE protection, resource limits, and process isolation    |
-| **Language Support**      | Easy integration of new programming languages             |
-| **Monitoring**            | Real-time tracking of resource usage and execution status |
-
 ## 📋 Prerequisites
 
 Before running this project, ensure you have:
@@ -34,13 +23,7 @@ Before running this project, ensure you have:
 Install cargo-tangle:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tangle-network/gadget/releases/download/cargo-tangle-v0.1.2/cargo-tangle-installer.sh | sh
-```
-
-Or via crates.io:
-
-```bash
-cargo install cargo-tangle --force
+cargo install cargo-tangle --git https://github.com/tangle-network/blueprint.git --force
 ```
 
 ## 🚀 Quick Start
@@ -130,33 +113,9 @@ The blueprint consists of several key components:
 4. **HTTP Server**: RESTful API for code execution requests
 5. **Resource Monitor**: Tracks and limits resource usage
 
-## 🔒 Security
-
-The service implements multiple security measures:
-
-- Sandboxed execution environment
-- Resource limits and monitoring
-- Process isolation
-- Secure cleanup after execution
-- Input validation and sanitization
-
 ## 📜 License
 
 Licensed under either of:
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 - MIT license ([LICENSE-MIT](LICENSE-MIT))
-
-## 🤝 Contributing
-
-We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you shall be dual licensed as above, without any
-additional terms or conditions.
