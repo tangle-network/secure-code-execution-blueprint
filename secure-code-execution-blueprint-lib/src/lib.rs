@@ -1,12 +1,8 @@
 use blueprint_sdk::extract::Context;
-use blueprint_sdk::job_result::Void;
 use blueprint_sdk::macros::context::{ServicesContext, TangleClientContext};
 use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::tangle::extract::{TangleArgs3, TangleResult};
 use serde::{Deserialize, Serialize};
-
-// The job ID for say_hello
-pub const SAY_HELLO_JOB_ID: u32 = 1;
 
 // The job ID for execute_code
 pub const EXECUTE_CODE_JOB_ID: u32 = 0;

@@ -5,7 +5,7 @@ use blueprint_sdk::testing::utils::harness::TestHarness;
 use blueprint_sdk::testing::utils::setup_log;
 use blueprint_sdk::testing::utils::tangle::TangleTestHarness;
 use blueprint_sdk::testing::utils::tangle::blueprint_serde::to_field;
-use secure_code_execution_blueprint_blueprint_lib::{MyContext, say_hello};
+use secure_code_execution_blueprint_blueprint_lib::{ServiceContext, execute_code};
 
 // The number of nodes to spawn in the test
 const N: usize = 1;
@@ -16,7 +16,7 @@ async fn test_blueprint() -> color_eyre::Result<()> {
 
     // Initialize test harness (node, keys, deployment)
     let temp_dir = tempfile::TempDir::new()?;
-    let context = MyContext::new();
+    let context = ServiceContext::new();
     let harness = TangleTestHarness::setup(temp_dir, context).await?;
 
     // Setup service with `N` nodes
@@ -24,13 +24,17 @@ async fn test_blueprint() -> color_eyre::Result<()> {
 
     // Setup the node(s)
     test_env.initialize().await?;
-    test_env.add_job(say_hello.layer(TangleLayer)).await;
+    test_env.add_job(execute_code.layer(TangleLayer)).await;
 
     // Start the test environment. It is now ready to receive job calls.
     test_env.start().await?;
 
     // Submit the job call
-    let job_inputs = vec![to_field(Some("Alice")).unwrap()];
+    let job_inputs = vec![
+        to_field("python".to_string()).unwrap(),
+        to_field("print('Hello World')".to_string()).unwrap(),
+        to_field(None::<String>).unwrap(),
+    ];
     let job = harness.submit_job(service_id, 0, job_inputs).await?;
 
     let results = harness.wait_for_job_execution(service_id, job).await?;
