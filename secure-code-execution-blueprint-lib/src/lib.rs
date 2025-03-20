@@ -2,7 +2,7 @@ use blueprint_sdk::extract::Context;
 use blueprint_sdk::job_result::Void;
 use blueprint_sdk::macros::context::{ServicesContext, TangleClientContext};
 use blueprint_sdk::runner::config::BlueprintEnvironment;
-use blueprint_sdk::tangle::extract::TangleArgs3;
+use blueprint_sdk::tangle::extract::{TangleArgs3, TangleResult};
 use serde::{Deserialize, Serialize};
 
 // The job ID for say_hello
@@ -40,7 +40,7 @@ struct CodeExecutionResponse {
 pub async fn execute_code(
     Context(ctx): Context<ServiceContext>,
     TangleArgs3(language, code, input): TangleArgs3<String, String, Option<String>>,
-) -> Result<Void, blueprint_sdk::Error> {
+) -> Result<TangleResult<Void>, blueprint_sdk::Error> {
     let request = CodeExecutionRequest {
         language,
         code,
@@ -62,5 +62,5 @@ pub async fn execute_code(
         return Err(blueprint_sdk::Error::Other(response.stderr));
     }
 
-    Ok(Void)
+    Ok(TangleResult(Void))
 }
