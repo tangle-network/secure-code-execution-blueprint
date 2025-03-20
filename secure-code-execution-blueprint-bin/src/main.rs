@@ -11,9 +11,7 @@ use blueprint_sdk::tangle::consumer::TangleConsumer;
 use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
-use secure_code_execution_blueprint_blueprint_lib::{
-    EXECUTE_CODE_JOB_ID, MyContext, SAY_HELLO_JOB_ID, execute_code, say_hello,
-};
+use secure_code_execution_blueprint_blueprint_lib::{EXECUTE_CODE_JOB_ID, MyContext, execute_code};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
@@ -37,44 +35,13 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
     let service_id = env.protocol_settings.tangle()?.service_id.unwrap();
     let result = BlueprintRunner::builder(tangle_config, env)
         .router(
-            // A router
-            //
-            // Each "route" is a job ID and the job function. We can also support arbitrary `Service`s from `tower`,
-            // which may make it easier for people to port over existing services to a blueprint.
             Router::new()
-                // The route defined here has a `TangleLayer`, which adds metadata to the
-                // produced `JobResult`s, making it visible to a `TangleConsumer`.
-                .route(SAY_HELLO_JOB_ID, say_hello.layer(TangleLayer))
-                // Add the execute_code job
                 .route(EXECUTE_CODE_JOB_ID, execute_code.layer(TangleLayer))
-                // Add the `FilterLayer` to filter out job calls that don't match the service ID
-                //
-                // This layer is global to the router, and is applied to every job call.
                 .layer(FilterLayer::new(MatchesServiceId(service_id)))
-                // We can add a context to the router, which will be passed to all job functions
-                // that have the `Context` extractor.
-                //
-                // A context can be used for global state between job calls, such as a database.
-                //
-                // It is important to note that the context is **cloned** for each job call, so
-                // the context must be cheaply cloneable.
                 .with_context(MyContext::new()),
         )
-        // Add potentially many producers
-        //
-        // A producer is simply a `Stream` that outputs `JobCall`s, which are passed down to the intended
-        // job functions.
         .producer(tangle_producer)
-        // Add potentially many consumers
-        //
-        // A consumer is simply a `Sink` that consumes `JobResult`s, which are the output of the job functions.
-        // Every result will be passed to every consumer. It is the responsibility of the consumer
-        // to determine whether or not to process a result.
         .consumer(tangle_consumer)
-        // Custom shutdown handlers
-        //
-        // Now users can specify what to do when an error occurs and the runner is shutting down.
-        // That can be cleanup logic, finalizing database transactions, etc.
         .with_shutdown_handler(async { println!("Shutting down!") })
         .run()
         .await;
