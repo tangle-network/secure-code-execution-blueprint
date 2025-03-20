@@ -1,84 +1,162 @@
-# <h1 align="center">Hello World Tangle Blueprint 🌐</h1>
+# <h1 align="center">Code Execution Blueprint for Tangle Network 🚀</h1>
 
 ## 📚 Overview
 
-This Tangle Blueprint provides a simple Hello World job.
-Blueprints are specifications for <abbr title="Actively Validated Services">AVS</abbr>s on the Tangle Network. An AVS is
-an off-chain service that runs arbitrary computations for a user-specified period of time.
+This Tangle Blueprint provides a secure code execution service that runs arbitrary code snippets in a Trusted Execution Environment (TEE). It supports multiple programming languages and ensures secure isolation through sandboxing and resource limits.
 
-Blueprints provide a useful abstraction, allowing developers to create reusable service infrastructures as if they were
-smart contracts. This enables developers to monetize their work and align long-term incentives with the success of their
-creations, benefiting proportionally to their Blueprint's usage.
+The service is designed to be:
 
-For more details, please refer to the [project documentation](https://docs.tangle.tools/developers/blueprints/introduction).
+- 🔒 Secure: Runs code in isolated environments with strict resource limits
+- 🌐 Language-agnostic: Supports multiple programming languages
+- ⚡ Fast: Optimized for quick code execution and response
+- 🛡️ Safe: Leverages TEE for secure code execution
+- 🔄 Scalable: Handles concurrent executions with proper resource management
 
-## 🚀 Features
+### 💫 Key Capabilities
 
-- Custom greeting messages
-- Default "Hello World!" messages
-- ...
+| Capability                | Description                                               |
+| ------------------------- | --------------------------------------------------------- |
+| **Execution Isolation**   | Each code snippet runs in its own sandboxed environment   |
+| **Resource Control**      | Fine-grained control over memory, CPU, and disk usage     |
+| **Concurrent Processing** | Handle multiple code executions simultaneously            |
+| **Security Measures**     | TEE protection, resource limits, and process isolation    |
+| **Language Support**      | Easy integration of new programming languages             |
+| **Monitoring**            | Real-time tracking of resource usage and execution status |
 
 ## 📋 Prerequisites
 
-Before you can run this project, you will need to have the following software installed on your machine:
+Before running this project, ensure you have:
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Forge](https://getfoundry.sh)
+- [cargo-tangle](https://crates.io/crates/cargo-tangle)
 
-You will also need to install [cargo-tangle](https://crates.io/crates/cargo-tangle), our CLI tool for creating and
-deploying Tangle Blueprints:
-
-To install the Tangle CLI, run the following command:
-
-> Supported on Linux, MacOS, and Windows (WSL2)
+Install cargo-tangle:
 
 ```bash
-cargo install cargo-tangle --git https://github.com/tangle-network/blueprint
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tangle-network/gadget/releases/download/cargo-tangle-v0.1.2/cargo-tangle-installer.sh | sh
 ```
 
-## ⭐ Getting Started
+Or via crates.io:
 
-Once `cargo-tangle` is installed, you can create a new project with the following command:
-
-```sh
-cargo tangle blueprint create --name <project-name>
+```bash
+cargo install cargo-tangle --force
 ```
 
-and follow the instructions to create a new project.
+## 🚀 Quick Start
 
-## 🛠️ Development
+1. **Build the Project**:
 
-Once you have created a new project, you can run the following command to start the project:
-
-```sh
+```bash
 cargo build
 ```
 
-to build the project, and
+2. **Run Tests**:
 
-```sh
+```bash
+cargo test
+```
+
+3. **Deploy the Blueprint**:
+
+```bash
 cargo tangle blueprint deploy
 ```
 
-to deploy the blueprint to the Tangle network.
+## 💻 Usage
+
+### Execute Code via HTTP API
+
+```bash
+curl -X POST http://localhost:8080/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "language": "python",
+    "code": "print(\"Hello, World!\")",
+    "input": null,
+    "timeout": 30
+  }'
+```
+
+Response format:
+
+```json
+{
+  "stdout": "Hello, World!\n",
+  "stderr": "",
+  "status": "success",
+  "execution_time": 123,
+  "memory_usage": 1024
+}
+```
+
+### Execute Code via Tangle Network
+
+```rust
+let result = execute_code(
+    "python".to_string(),
+    "print('Hello from Tangle!')",
+    None,
+    context
+).await?;
+```
+
+## 🔧 Configuration
+
+The service can be configured through environment variables:
+
+- `CODE_EXEC_PORT`: HTTP server port (default: 8080)
+- `MAX_CONCURRENT_EXECUTIONS`: Maximum concurrent code executions (default: 10)
+
+Resource limits can be customized in `ResourceLimits`:
+
+```rust
+ResourceLimits {
+    memory: 256 * 1024 * 1024,  // 256MB
+    cpu_time: 30,               // 30 seconds
+    processes: 32,              // Max 32 processes
+    file_size: 10 * 1024 * 1024, // 10MB
+    disk_space: 100 * 1024 * 1024, // 100MB
+}
+```
+
+## 🏗️ Architecture
+
+The blueprint consists of several key components:
+
+1. **CodeExecutionService**: Core service managing code execution
+2. **Sandbox**: Isolated environment for secure code execution
+3. **Language Executors**: Language-specific execution implementations
+4. **HTTP Server**: RESTful API for code execution requests
+5. **Resource Monitor**: Tracks and limits resource usage
+
+## 🔒 Security
+
+The service implements multiple security measures:
+
+- Sandboxed execution environment
+- Resource limits and monitoring
+- Process isolation
+- Secure cleanup after execution
+- Input validation and sanitization
 
 ## 📜 License
 
-Licensed under either of
+Licensed under either of:
 
-* Apache License, Version 2.0
-  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* MIT license
-  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
 
-at your option.
+## 🤝 Contributing
 
-## 📬 Feedback and Contributions
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-We welcome feedback and contributions to improve this blueprint.
-Please open an issue or submit a pull request on our GitHub repository.
-Please let us know if you fork this blueprint and extend it too!
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+for inclusion in the work by you shall be dual licensed as above, without any
+additional terms or conditions.
