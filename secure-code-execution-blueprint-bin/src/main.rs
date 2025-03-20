@@ -11,7 +11,9 @@ use blueprint_sdk::tangle::consumer::TangleConsumer;
 use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
-use secure_code_execution_blueprint_blueprint_lib::{EXECUTE_CODE_JOB_ID, MyContext, execute_code};
+use secure_code_execution_blueprint_blueprint_lib::{
+    EXECUTE_CODE_JOB_ID, ServiceContext, execute_code,
+};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
@@ -38,7 +40,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
             Router::new()
                 .route(EXECUTE_CODE_JOB_ID, execute_code.layer(TangleLayer))
                 .layer(FilterLayer::new(MatchesServiceId(service_id)))
-                .with_context(MyContext::new()),
+                .with_context(ServiceContext::new()),
         )
         .producer(tangle_producer)
         .consumer(tangle_consumer)

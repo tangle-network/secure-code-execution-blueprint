@@ -21,6 +21,12 @@ pub struct ServiceContext {
     pub http_client: reqwest::Client,
 }
 
+impl ServiceContext {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 struct CodeExecutionRequest {
     language: String,
@@ -40,7 +46,7 @@ struct CodeExecutionResponse {
 pub async fn execute_code(
     Context(ctx): Context<ServiceContext>,
     TangleArgs3(language, code, input): TangleArgs3<String, String, Option<String>>,
-) -> Result<TangleResult<Void>, blueprint_sdk::Error> {
+) -> Result<TangleResult<()>, blueprint_sdk::Error> {
     let request = CodeExecutionRequest {
         language,
         code,
@@ -62,5 +68,5 @@ pub async fn execute_code(
         return Err(blueprint_sdk::Error::Other(response.stderr));
     }
 
-    Ok(TangleResult(Void))
+    Ok(TangleResult(()))
 }
